@@ -1,3 +1,9 @@
+"""
+Sources:
+Face landmark detection in Python:
+https://medium.com/analytics-vidhya/facial-landmarks-and-face-detection-in-python-with-opencv-73979391f30e
+"""
+
 import sys
 import cv2 as cv
 import numpy as np
@@ -61,13 +67,22 @@ def horn_schunk(prev_u, prev_v, x_sobel, y_sobel, t_sobel, num_iter):
 
 def main(argv):
 
-    cap = cv.VideoCapture('./videos/IMG_7896.MOV')
+    cap = cv.VideoCapture('./videos/IMG_7895.MOV')
 
     # parameters:
     ksize = 3 # sobel kernel size
     ddepth = -1 #cv2.CV_64F # sobel return type
 
     local_frames = [0, 0, 0]
+
+    # Quickly find faces using Haar Cascades
+    detector = cv.CascadeClassifier("haarcascade_frontalface_alt2.xml")
+
+    # Find face landmarks
+    face_points = []
+    landmark_detector = cv.face.createFacemarkLBF()
+    lbf_model = "lbfmodel.yaml"
+    landmark_detector.loadModel(lbf_model)
 
     while True:
         # captures frame if stream not paused
@@ -86,6 +101,17 @@ def main(argv):
         grey_img = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
         grad_x = cv.Sobel(grey_img, ddepth, 1, 0, ksize)
         grad_y = cv.Sobel(grey_img, ddepth, 0, 1, ksize)
+
+        # Quickly find faces in a frame
+        faces = detector.detectMultiScale(grey_img)
+
+        # Detect landmarks on "grey_img"
+        _, landmarks = landmark_detector.fit(grey_img, faces)
+
+        for landmark in landmarks:
+            for x, y in landmark[0]:
+                # display landmarks on "grey_img" with white colour in BGR and thickness 1
+                cv.circle(grey_img, (int(x), int(y)), 5, (255, 255, 255), 3)
 
         # key commands
         key = cv.waitKey(1)
