@@ -162,17 +162,27 @@ def main(argv):
             v[non_zero_ind] = 5*v[non_zero_ind] / u_v_mag[non_zero_ind]
             
             # Select a subset of regularly spaced arrow to graph
-            step = 50 # the stepsize we use when selecting arrow to graph
-            graph_x = np.meshgrid( np.arange(0, u.shape[0], step), np.arange(0, u.shape[1], step) )
-            graph_y = np.meshgrid( np.arange(0, v.shape[0], step), np.arange(0, v.shape[1], step) )
+            step = 25 # the stepsize we use when selecting arrow to graph
+            graph_x = np.ix_( np.arange(0, u.shape[0], step), np.arange(0, u.shape[1], step) )
+            graph_y = np.ix_( np.arange(0, v.shape[0], step), np.arange(0, v.shape[1], step) )
 
             # Extract the image colors to graph with the subset of arrows
-            colors = frame[graph_x].transpose((1,0,2)).reshape((graph_x[0].shape[0]*graph_x[0].shape[1],3)) / 255
+#            print(len(graph_x))
+#            print(graph_x[0].shape)
+            colors = frame[graph_x].transpose((1,0,2))
+            
+            colors = colors.reshape((colors.shape[0]*colors.shape[1],3)) / 255
+#            colors = frame[graph_x].transpose((1,0,2)) / 255
             
             # Graph the optical flow field, save to image
             fig, ax = plt.subplots( figsize=(4,8) )
+            
+            print(colors.shape)
+            print(u[graph_x].shape)
+            print(v[graph_y].shape)
+            
             # inputs: (x location, y location, x orientation, y orientation, color)
-            ax.quiver(np.arange(0, u.shape[1], step), np.arange(0, u.shape[0], step), u[graph_x].T,v[graph_y].T, color = colors)
+            ax.quiver(np.arange(0, u.shape[1], step), np.arange(0, u.shape[0], step), u[graph_x],v[graph_y], color = colors)
             fig.savefig('thing.png')
             
         
