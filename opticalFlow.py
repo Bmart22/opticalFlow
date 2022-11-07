@@ -17,6 +17,7 @@ def time_sobel(local_frames):
     return -local_frames[0] + local_frames[1]
 
 
+# Implementation of Horn & Schunk algorithm for computing the optical flow
 def horn_schunk(x_sobel, y_sobel, t_sobel):
     u = np.zeros((x_sobel.shape[0], x_sobel.shape[1]))
     v = np.zeros((x_sobel.shape[0], x_sobel.shape[1]))
@@ -68,8 +69,9 @@ def horn_schunk(x_sobel, y_sobel, t_sobel):
     return u, v
 
 
+# Saves a plot of the computed optical flow field
 def plot(u, v, frame):
-    # Normalize vectors
+    # Normalize vectors, if you please
     '''u_v_mag = np.sqrt(u * u + v * v)
     non_zero_ind = np.nonzero(u_v_mag)
     u[non_zero_ind] = 5 * u[non_zero_ind] / u_v_mag[non_zero_ind]
