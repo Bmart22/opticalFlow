@@ -1,3 +1,8 @@
+#
+# Brendan Martin, Phil Butler
+# kalman_calibration.py
+# CS 7180 Advanced Perception - Fall 2022 - 11/6/22
+
 """
 Sources:
 Face landmark detection in Python:
@@ -8,8 +13,8 @@ import sys
 import cv2 as cv
 import numpy as np
 
-#delta_t = 1/60
-delta_t = 1
+delta_t = 1/60
+#delta_t = 1
 
 
 # Add newest frame to list that contains the three most recent frames
@@ -18,13 +23,15 @@ def update_frames(local_frames, new_frame):
     local_frames[1] = local_frames[2]
     local_frames[2] = new_frame
     return
-    
+
+# Add newest facial features to list that contains the three most recent time steps
 def update_features(local_features, new_feature):
     local_features[0] = local_features[1]
     local_features[1] = local_features[2]
     local_features[2] = new_feature
     return
-    
+
+# Calculate the position, velocity, and acceleration for each facial feature given three time steps
 def format_state(local_features):
     x_state = np.zeros( (3, len(local_features[2])) )
     y_state = np.zeros( (3, len(local_features[2])) )
@@ -39,17 +46,18 @@ def format_state(local_features):
         y_state[1,i] = (local_features[2][i][1] - local_features[1][i][1]) / delta_t
         
         # Copy acceleration
-        v = local_features[2][i][0] - local_features[1][i][0] / delta_t
-        u = local_features[1][i][0] - local_features[0][i][0] / delta_t
+        v = (local_features[2][i][0] - local_features[1][i][0]) / delta_t
+        u = (local_features[1][i][0] - local_features[0][i][0]) / delta_t
         x_state[2,i] = (v - u) / delta_t
         
-        v = local_features[2][i][1] - local_features[1][i][1] / delta_t
-        u = local_features[1][i][1] - local_features[0][i][1] / delta_t
+        v = (local_features[2][i][1] - local_features[1][i][1]) / delta_t
+        u = (local_features[1][i][1] - local_features[0][i][1]) / delta_t
         y_state[2,i] = (v - u) / delta_t
         
     return x_state, y_state
 
-
+# Load a video of a still face and calculate the measurement covariance matrices
+# Because the Newtonian physics of x and y are separable, we calculate separate x and y matrices
 def main(argv):
 
     cap = cv.VideoCapture('./videos/face_calibration.MOV')
@@ -74,9 +82,6 @@ def main(argv):
     
     local_features = [0,0,0]
     features = []
-    
-    x_prev_p = np.zeros((3,3))
-    y_prev_p = np.zeros((3,3))
 
     for f in range(num_frames):
         # captures frame if stream not paused
@@ -86,8 +91,6 @@ def main(argv):
         if not ret:
             print("Error: frame not read correctly")
             break
-
-#        frame = cv.flip(frame, 0)
 
         update_frames(local_frames, frame)
 
@@ -120,23 +123,10 @@ def main(argv):
             if counter >= 2:
                 x_measure, y_measure = format_state(local_features)
                 
-#                for i in range(len(x_measure)):
+                #Store the features' states at this time frame
                 x_cov_readings[:,counter-2,:] = x_measure
                 y_cov_readings[:,counter-2,:] = y_measure
                 
-#                # If first time step, nitialize the state to the measurment
-#                if counter == 3:
-#                    x_state = x_measure
-#                    y_state = y_measure
-#                # Else, run the kalman filter
-#                else:
-#                    x_state, x_prev_p = kalman(x_state, x_measure, x_prev_p)
-#                    y_state, y_prev_p = kalman(y_state, y_measure, y_prev_p)
-#
-#
-#                # display landmarks on "grey_img" with white colour in BGR and thickness 1
-#                for i in range(x_state.shape[1]):
-#                    cv.circle(grey_img, (int(x_state[0,i]), int(y_state[0,i])), 5, (255, 255, 255), 3)
 
         # key commands
         key = cv.waitKey(1)
@@ -150,7 +140,7 @@ def main(argv):
         
         cv.imshow("Video", grey_img)
         
-    # Calculate covariance
+    # Calculate covariance matrices
     x_cov = np.zeros((3,3,x_cov_readings.shape[-1]))
     y_cov = np.zeros((3,3,y_cov_readings.shape[-1]))
     for i in range(x_measure.shape[-1]):

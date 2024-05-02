@@ -25,7 +25,7 @@ def time_sobel(local_frames):
         
     return filter_output
     
-def horn_schunk(x_sobel, y_sobel, t_sobel):
+def horn_schunck(x_sobel, y_sobel, t_sobel):
     u = np.zeros((x_sobel.shape[0],x_sobel.shape[1]))
     v = np.zeros((x_sobel.shape[0],x_sobel.shape[1]))
 
@@ -36,7 +36,7 @@ def horn_schunk(x_sobel, y_sobel, t_sobel):
 #    y_sobel = cv.GaussianBlur(y_sobel, (5, 5), 0, 0)
     
     
-    # Calculate magnitude
+    # Calculate magnitude, normalize to [0,1]
     sobel_mag = np.sqrt(x_sobel*x_sobel + y_sobel*y_sobel) / np.sqrt(2)
     sobel_mag = 255 * sobel_mag / np.max(sobel_mag)
 
@@ -44,7 +44,7 @@ def horn_schunk(x_sobel, y_sobel, t_sobel):
     error_cutoff = 0 # the error threshold at which we call the approximation "good enough"
     mag_cutoff = 10
     iter = 0
-    num_iter = 5 # The maximum number of iterations the algorithm
+    num_iter = 50 # The maximum number of iterations the algorithm
     
     E = float('inf')
 
@@ -108,6 +108,7 @@ def horn_schunk(x_sobel, y_sobel, t_sobel):
 
 def main(argv):
     cap = cv.VideoCapture('./videos/IMG_7896.MOV')
+    num_frames = int(cap.get(cv.CAP_PROP_FRAME_COUNT))
 
     if not cap.isOpened():
         print("Error: unable to open camera")
@@ -130,7 +131,7 @@ def main(argv):
     
     counter = 0
 
-    while True:
+    for f in range(num_frames):
         # captures frame if stream not paused
         ret, frame = cap.read()
 
@@ -153,7 +154,7 @@ def main(argv):
             t_sobel = time_sobel(local_frames)
             
             # Calculate veclocity vectors (u, v)
-            u,v = horn_schunk(x_sobel, y_sobel, t_sobel)
+            u,v = horn_schunck(x_sobel, y_sobel, t_sobel)
             
             # Normalize vectors
             u_v_mag = np.sqrt(u*u + v*v)
@@ -162,7 +163,7 @@ def main(argv):
             v[non_zero_ind] = 5*v[non_zero_ind] / u_v_mag[non_zero_ind]
             
             # Select a subset of regularly spaced arrow to graph
-            step = 25 # the stepsize we use when selecting arrow to graph
+            step = 100 # the stepsize we use when selecting arrow to graph
             graph_x = np.ix_( np.arange(0, u.shape[0], step), np.arange(0, u.shape[1], step) )
             graph_y = np.ix_( np.arange(0, v.shape[0], step), np.arange(0, v.shape[1], step) )
 
@@ -183,7 +184,7 @@ def main(argv):
             
             # inputs: (x location, y location, x orientation, y orientation, color)
             ax.quiver(np.arange(0, u.shape[1], step), np.arange(0, u.shape[0], step), u[graph_x],v[graph_y], color = colors)
-            fig.savefig('thing.png')
+            fig.savefig("res_100_long.png".format(f))
             
         
 

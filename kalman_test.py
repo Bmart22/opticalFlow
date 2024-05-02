@@ -1,3 +1,8 @@
+#
+# Brendan Martin, Phil Butler
+# kalman_test.py
+# CS 7180 Advanced Perception - Fall 2022 - 11/6/22
+
 """
 Sources:
 Face landmark detection in Python:
@@ -8,37 +13,19 @@ import sys
 import cv2 as cv
 import numpy as np
 
-#delta_t = 1/60
-delta_t = 1
+# Time step frame-to-frame
+delta_t = 1/60
+#delta_t = 1
 
 
-# Add newest frame to list that contains the three most recent frames
-def update_frames(local_frames, new_frame):
-    local_frames[0] = local_frames[1]
-    local_frames[1] = local_frames[2]
-    local_frames[2] = new_frame
-    return
-    
+# Add newest facial features to list that contains the three most recent time steps
 def update_features(local_features, new_feature):
     local_features[0] = local_features[1]
     local_features[1] = local_features[2]
     local_features[2] = new_feature
     return
-
-
-# Calculate the time-dimension sobel filter
-def time_sobel(local_frames):
-    # Init output array
-    dim = local_frames[0].shape
-    filter_output = np.zeros( dim )
     
-    # Loop over all pixels
-    for r in range(dim[0]):
-        for c in range(dim[1]):
-            filter_output = local_frames[0] - local_frames[1]
-        
-    return
-    
+# Calculate the position, velocity, and acceleration for each facial feature given three time steps
 def format_state(local_features):
     x_state = np.zeros( (3, len(local_features[2])) )
     y_state = np.zeros( (3, len(local_features[2])) )
@@ -53,23 +40,20 @@ def format_state(local_features):
         y_state[1,i] = (local_features[2][i][1] - local_features[1][i][1]) / delta_t
         
         # Copy acceleration
-        v = local_features[2][i][0] - local_features[1][i][0] / delta_t
-        u = local_features[1][i][0] - local_features[0][i][0] / delta_t
+        v = (local_features[2][i][0] - local_features[1][i][0]) / delta_t
+        u = (local_features[1][i][0] - local_features[0][i][0]) / delta_t
         x_state[2,i] = (v - u) / delta_t
         
-        v = local_features[2][i][1] - local_features[1][i][1] / delta_t
-        u = local_features[1][i][1] - local_features[0][i][1] / delta_t
+        v = (local_features[2][i][1] - local_features[1][i][1]) / delta_t
+        u = (local_features[1][i][1] - local_features[0][i][1]) / delta_t
         y_state[2,i] = (v - u) / delta_t
         
     return x_state, y_state
-    
+
+# Calculate the state of the current features given the previous time-step's state the current measurment
 def kalman(prev_x, z, prev_p, R_cov):
     Q = np.zeros((3,3)) # process covariance
-#    Q = np.identity(3)
     R = R_cov # measurement covariance
-#    R = np.zeros((3,3))
-
-#    print(prev_x)
     
     # state update matrix
     phi = np.array([ [1, delta_t, (delta_t*delta_t)/2],
@@ -86,8 +70,6 @@ def kalman(prev_x, z, prev_p, R_cov):
 
     # Estimate Kalman gain (weighting the current state and measurement)
     K = (P_minus @ H.T) / (H @ P_minus @ H.T + R)
-    K = K.T
-#    K = np.zeros((3,3))
 
     P_plus = (np.identity(3) - K @ H) @ P_minus
 
@@ -95,10 +77,10 @@ def kalman(prev_x, z, prev_p, R_cov):
 
     return x, P_plus
 
-
+# Run face detection modified by the Kalman filter on a video sequence
 def main(argv):
 
-    cap = cv.VideoCapture('./videos/face_calibration.MOV')
+    cap = cv.VideoCapture('./videos/face_test.MOV')
     num_frames = int(cap.get(cv.CAP_PROP_FRAME_COUNT))
 
     # parameters:
@@ -117,7 +99,7 @@ def main(argv):
     landmark_detector.loadModel(lbf_model)
     
     counter = 0
-    start_frame = 20
+    start_frame = 3
     
     local_features = [0,0,0]
     features = []
@@ -125,6 +107,7 @@ def main(argv):
     x_prev_p = np.zeros((3,3))
     y_prev_p = np.zeros((3,3))
     
+    # Load measurement error covariance matrices
     x_cov = np.load("x_covariance.npy")
     y_cov = np.load("y_covariance.npy")
 
@@ -137,23 +120,15 @@ def main(argv):
             print("Error: frame not read correctly")
             break
 
-#        frame = cv.flip(frame, 0)
-
-        update_frames(local_frames, frame)
 
         # Get the x, y, and t derivatives
         grey_img = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
-        grad_x = cv.Sobel(grey_img, ddepth, 1, 0, ksize)
-        grad_y = cv.Sobel(grey_img, ddepth, 0, 1, ksize)
-        
         
 
         # Quickly find faces in a frame
         faces = detector.detectMultiScale(grey_img)
 
         # Detect landmarks on "grey_img"
-#        array_tmp = cv.CreateMat(h, w, cv.CV_32FC3)
-#        array_tmp = cv.fromarray(grey_img)
         if len(faces) > 0:
             _, landmarks = landmark_detector.fit(grey_img, faces)
             
@@ -174,16 +149,15 @@ def main(argv):
                 if counter == start_frame:
                     x_state = x_measure
                     y_state = y_measure
-                    print(x_state)
                 # Else, run the kalman filter
                 else:
                     x_state, x_prev_p = kalman(x_state, x_measure, x_prev_p, x_cov)
                     y_state, y_prev_p = kalman(y_state, y_measure, y_prev_p, y_cov)
 
 
-                # display landmarks on "grey_img" with white colour in BGR and thickness 1
+                # display landmarks on "grey_img"
                 for i in range(x_state.shape[1]):
-                    cv.circle(grey_img, (int(x_state[0,i]), int(y_state[0,i])), 5, (255, 255, 255), 3)
+                    cv.circle(grey_img, (int(x_state[0,i]), int(y_state[0,i])), 5, (255, 0, 0), 3)
                 
 
         # key commands

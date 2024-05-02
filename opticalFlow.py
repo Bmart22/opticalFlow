@@ -1,3 +1,8 @@
+#
+# Brendan Martin, Phil Butler
+# opticalFlow.py
+# CS 7180 Advanced Perception - Fall 2022 - 11/6/22
+
 import sys
 import cv2 as cv
 import numpy as np
@@ -94,7 +99,7 @@ def plot(u, v, frame):
     fig.savefig('thing.png')
 
 
-# Main function
+# For a video, calc optical flow at each time step, estimate the next frame based on current pixel velocities
 def main(argv):
     cap = cv.VideoCapture('./videos/IMG_7895.MOV')
 
